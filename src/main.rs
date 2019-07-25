@@ -1,3 +1,6 @@
+// Used for group construction macro
+#![feature(proc_macro_hygiene)]
+
 use std::env;
 
 use serenity::prelude::*;
