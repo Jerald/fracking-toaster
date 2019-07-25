@@ -1,3 +1,6 @@
+#[macro_use]
+mod utils;
+
 mod groups;
 
 use serenity::framework::standard::{
