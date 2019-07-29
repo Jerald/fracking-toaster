@@ -20,7 +20,8 @@ macro_rules! framework_export {
     ( $(mod $m:ident;) + ) => {
         $(mod $m;)+
         
-        pub fn framework_with_groups() -> serenity::framework::standard::StandardFramework
+        #[no_mangle]
+        pub fn framework_factory() -> serenity::framework::standard::StandardFramework
         {
             serenity::framework::standard::StandardFramework::new()
             $(

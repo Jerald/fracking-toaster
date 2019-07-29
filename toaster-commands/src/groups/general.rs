@@ -10,38 +10,58 @@ use serenity::framework::standard::{
     }
 };
 
-use crate::toaster_framework::{
-    ToasterFramework
+use toaster_utils::{
+    toaster_framework::ToasterFramework,
+    hot_loader::{PluginManager},
 };
 
 group!({
     name: "general",
     options: {},
-    commands: [change_prefix, restart, test, ping, hello, help],
+    commands: [restart, test, ping, hello, help],
 });
 
 #[command]
-fn change_prefix(context: &mut Context, message: &Message, args: Args) -> CommandResult
+fn reload_commands(context: &mut Context, message: &Message, args: Args) -> CommandResult
 {
-    let prefix = match args.current()
-    {
-        Some(arg) => arg,
-        None => {
-            message.channel_id.say(&context.http, "No new prefix supplied! I need one for this to work...")?;
-            return Ok(())
-        }
+    let data = context.data.write();
+    let (framework, plugin_manager) = {
+        (data.get::<ToasterFramework>().unwrap(), data.get::<PluginManager>().unwrap())
     };
 
-    let new_inner = ToasterFramework::new_inner(prefix);
 
-    let data = context.data.read();
-    let framework = data.get::<ToasterFramework>().unwrap();
+    {
+        let mut guard = framework.get_inner().unwrap();
+        // let mut hot_reload = toaster_utils::hot_loader::HotReloadWrapper { framework: Some(framework.clone()), ..Default::default() };
+        let mut plugin_manager = plugin_manager.lock().unwrap();
 
-    framework.replace_inner(new_inner);
+        plugin_manager.reloader.update(PluginManager::reload_callback, &mut guard);
+    }
 
-    message.channel_id.say(&context.http, format!("My prefix has been changed to '{}'! Try it out", prefix))?;
     Ok(())
 }
+
+// #[command]
+// fn change_prefix(context: &mut Context, message: &Message, args: Args) -> CommandResult
+// {
+//     let prefix = match args.current()
+//     {
+//         Some(arg) => arg,
+//         None => {
+//             message.channel_id.say(&context.http, "No new prefix supplied! I need one for this to work...")?;
+//             return Ok(())
+//         }
+//     };
+
+//     let data = context.data.read();
+//     let framework = data.get::<ToasterFramework>().unwrap();
+
+//     let new_inner = framework.new_inner(prefix);
+//     framework.replace_inner(new_inner);
+
+//     message.channel_id.say(&context.http, format!("My prefix has been changed to '{}'! Try it out", prefix))?;
+//     Ok(())
+// }
 
 #[command]
 fn restart(context: &mut Context, message: &Message) -> CommandResult
