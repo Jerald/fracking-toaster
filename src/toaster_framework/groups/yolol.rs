@@ -1,4 +1,4 @@
-use std::convert::{TryFrom, TryInto};
+use std::convert::TryInto;
 
 use serenity::prelude::*;
 use serenity::model::channel::Message;
@@ -226,6 +226,8 @@ fn yolol(context: &mut Context, message: &Message, args: Args) -> CommandResult
             }
         },
     };
+
+    println!("Output: {:?}, input: {:?}", config.input, config.output);
 
     match config.output
     {

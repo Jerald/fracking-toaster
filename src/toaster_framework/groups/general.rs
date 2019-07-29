@@ -2,6 +2,7 @@ use serenity::prelude::*;
 use serenity::model::channel::Message;
 
 use serenity::framework::standard::{
+    Args,
     CommandResult,
     macros::{
         command,
@@ -9,11 +10,38 @@ use serenity::framework::standard::{
     }
 };
 
+use crate::toaster_framework::{
+    ToasterFramework
+};
+
 group!({
     name: "general",
     options: {},
-    commands: [restart, test, ping, hello, help],
+    commands: [change_prefix, restart, test, ping, hello, help],
 });
+
+#[command]
+fn change_prefix(context: &mut Context, message: &Message, args: Args) -> CommandResult
+{
+    let prefix = match args.current()
+    {
+        Some(arg) => arg,
+        None => {
+            message.channel_id.say(&context.http, "No new prefix supplied! I need one for this to work...")?;
+            return Ok(())
+        }
+    };
+
+    let new_inner = ToasterFramework::new_inner(prefix);
+
+    let data = context.data.read();
+    let framework = data.get::<ToasterFramework>().unwrap();
+
+    framework.replace_inner(new_inner);
+
+    message.channel_id.say(&context.http, format!("My prefix has been changed to '{}'! Try it out", prefix))?;
+    Ok(())
+}
 
 #[command]
 fn restart(context: &mut Context, message: &Message) -> CommandResult
