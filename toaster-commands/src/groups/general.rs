@@ -1,42 +1,78 @@
+use std::sync::{Arc, Mutex, MutexGuard};
+use std::ops::{Deref, DerefMut, Drop};
+
 use serenity::prelude::*;
 use serenity::model::channel::Message;
 
 use serenity::framework::standard::{
     Args,
     CommandResult,
+    StandardFramework,
     macros::{
         command,
         group
     }
 };
 
+use libloading::{
+    Library,
+    Symbol,
+    Result
+};
+
 use toaster_utils::{
     toaster_framework::ToasterFramework,
-    hot_loader::{PluginManager},
+    dynamic_loading::{CommandLib},
 };
 
 group!({
     name: "general",
     options: {},
-    commands: [restart, test, ping, hello, help],
+    commands: [reload_commands, restart, test, ping, hello, help, franken_toaster],
 });
 
 #[command]
-fn reload_commands(context: &mut Context, message: &Message, args: Args) -> CommandResult
+fn reload_commands(context: &mut Context, message: &Message, _args: Args) -> CommandResult
 {
-    let data = context.data.write();
-    let (framework, plugin_manager) = {
-        (data.get::<ToasterFramework>().unwrap(), data.get::<PluginManager>().unwrap())
+    println!("Starting reload_commands...");
+
+    let mut data = context.data.write();
+
+    // Reload the dynamic library into a wrapper
+    let command_lib = {
+        println!("Loading new lib...");
+        let lib = Library::new("target/debug/libtoaster_commands.so").expect("Failed to open shared library in reload_commands!");
+        CommandLib(Arc::new(lib))
     };
 
+    // Replace the wrapper in the data map with the one from our new library
+    // We return the old library so it's not dropped until this command finishes execution
+    let _previous_lib = {
+        println!("Getting previous CommandLib...");
+        data.insert::<CommandLib>(command_lib.clone()).unwrap();
+    };
 
+    // Loads the framework factory symbol and uses it to construct a new framework inner
+    let new_inner = {
+        println!("Extracting new factory symbol...");
+        let factory: Symbol<fn() -> StandardFramework> = unsafe { command_lib.0.get(b"framework_factory\0").expect("Failed to unwrap framework_factory symbol in reload_commands") };
+
+        println!("Creating new inner for framework...");
+        toaster_utils::toaster_framework::ToasterFramework::create_inner(*factory, "t>")
+    };
+
+    // Grabs the framework out of the data map and swaps the inner with the newly constructed one
     {
-        let mut guard = framework.get_inner().unwrap();
-        // let mut hot_reload = toaster_utils::hot_loader::HotReloadWrapper { framework: Some(framework.clone()), ..Default::default() };
-        let mut plugin_manager = plugin_manager.lock().unwrap();
+        let framework = data.get::<ToasterFramework>().unwrap();
 
-        plugin_manager.reloader.update(PluginManager::reload_callback, &mut guard);
+        println!("Swapping inners...");
+        let mut old_inner = framework.get_writer().unwrap();
+
+        *old_inner = new_inner;
     }
+
+    println!("Finished reloading commands!");
+    message.channel_id.say(&context.http, "Finished reloading commands!")?;
 
     Ok(())
 }
@@ -56,8 +92,17 @@ fn reload_commands(context: &mut Context, message: &Message, args: Args) -> Comm
 //     let data = context.data.read();
 //     let framework = data.get::<ToasterFramework>().unwrap();
 
-//     let new_inner = framework.new_inner(prefix);
-//     framework.replace_inner(new_inner);
+//     let guard = data.get::<PluginManager>().unwrap().command_lib.lock().unwrap();
+
+//     println!("Re-getting framework_factory symbol...");
+//     let factory: Symbol<unsafe extern fn() -> StandardFramework> = unsafe { guard.get(b"framework_factory\0").expect("Failed to unwrap framework_factory symbol in main.rs!") };
+
+//     println!("Attempting to re-gotten factory symbol...");
+//     let mut new_inner = unsafe { ToasterFramework::unsafe_create_inner(*factory, prefix) };
+
+//     // let mut new_inner = ToasterFramework::create_inner(toaster_utils::toaster_framework::default_inner_factory, prefix);
+//     println!("Swapping new inner with old inner...");
+//     framework.swap_inner(&mut new_inner);
 
 //     message.channel_id.say(&context.http, format!("My prefix has been changed to '{}'! Try it out", prefix))?;
 //     Ok(())
@@ -90,7 +135,7 @@ fn restart(context: &mut Context, message: &Message) -> CommandResult
 #[command]
 fn test(ctx: &mut Context, msg: &Message) -> CommandResult
 {
-    msg.channel_id.say(&ctx.http, "I've been refactored, _slightly_")?;
+    msg.channel_id.say(&ctx.http, "I might be alive...")?;
     Ok(())
 }
 
@@ -112,5 +157,12 @@ fn hello(ctx: &mut Context, msg: &Message) -> CommandResult
 fn help(ctx: &mut Context, msg: &Message) -> CommandResult
 {
     msg.channel_id.say(&ctx.http, "I'm just a toaster! What would I be able to do to help?\n (Psst: I'm under construction, check back in later!)")?;
+    Ok(())
+}
+
+#[command]
+fn franken_toaster(ctx: &mut Context, msg: &Message) -> CommandResult
+{
+    msg.channel_id.say(&ctx.http, "Not sure if I'm alive")?;
     Ok(())
 }
