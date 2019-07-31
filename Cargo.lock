@@ -1207,21 +1207,12 @@ dependencies = [
  "serenity 0.6.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "serenity_group_name 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "threadpool 1.7.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "toaster-utils 0.1.0",
+ "toaster-core 0.1.0",
  "yoloxide 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
 name = "toaster-core"
-version = "0.1.0"
-dependencies = [
- "libloading 0.5.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "serenity 0.6.3 (registry+https://github.com/rust-lang/crates.io-index)",
- "toaster-utils 0.1.0",
-]
-
-[[package]]
-name = "toaster-utils"
 version = "0.1.0"
 dependencies = [
  "libloading 0.5.2 (registry+https://github.com/rust-lang/crates.io-index)",

@@ -10,7 +10,7 @@ edition = "2018"
 crate-type = ["dylib"]
 
 [dependencies]
-toaster-utils = { path = "../toaster-utils" }
+toaster-core = { path = "../toaster-core" }
 
 serenity = { version = "0.6.2", default-features = true }
 threadpool = "1.7.1"

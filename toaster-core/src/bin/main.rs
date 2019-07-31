@@ -16,7 +16,7 @@ use libloading::{
     Result
 };
 
-use toaster_utils::{
+use toaster_core::{
     toaster_framework,
     toaster_framework::ToasterFramework,
     dynamic_loading::{CommandLib},

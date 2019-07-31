@@ -20,7 +20,7 @@ use libloading::{
     Result
 };
 
-use toaster_utils::{
+use toaster_core::{
     toaster_framework::ToasterFramework,
     dynamic_loading::{CommandLib},
 };
@@ -58,7 +58,7 @@ fn reload_commands(context: &mut Context, message: &Message, _args: Args) -> Com
         let factory: Symbol<fn() -> StandardFramework> = unsafe { command_lib.0.get(b"framework_factory\0").expect("Failed to unwrap framework_factory symbol in reload_commands") };
 
         println!("Creating new inner for framework...");
-        toaster_utils::toaster_framework::ToasterFramework::create_inner(*factory, "t>")
+        toaster_core::toaster_framework::ToasterFramework::create_inner(*factory, "t>")
     };
 
     // Grabs the framework out of the data map and swaps the inner with the newly constructed one

@@ -3,5 +3,4 @@
 members = [
     "toaster-core",
     "toaster-commands",
-    "toaster-utils",
 ]
