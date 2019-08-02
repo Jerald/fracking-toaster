@@ -28,8 +28,52 @@ use toaster_core::{
 group!({
     name: "general",
     options: {},
-    commands: [reload_commands, restart, test, ping, hello, help, franken_toaster],
+    commands: [reload_commands, add_group, remove_group, restart, test, ping, hello, help, franken_toaster],
 });
+
+#[command]
+fn add_group(context: &mut Context, message: &Message, args: Args) -> CommandResult
+{
+    let group = match args.current()
+    {
+        Some(arg) => arg,
+        None => {
+            message.channel_id.say(&context.http, "No group supplied!")?;
+            return Ok(())
+        }
+    };
+
+    {
+        let mut data = context.data.write();
+        let framework = data.get_mut::<ToasterFramework>().unwrap();
+
+        framework.add_group(group)?;
+    }
+
+    Ok(())
+}
+
+#[command]
+fn remove_group(context: &mut Context, message: &Message, args: Args) -> CommandResult
+{
+    let group = match args.current()
+    {
+        Some(arg) => arg,
+        None => {
+            message.channel_id.say(&context.http, "No group supplied!")?;
+            return Ok(())
+        }
+    };
+
+    {
+        let mut data = context.data.write();
+        let framework = data.get_mut::<ToasterFramework>().unwrap();
+
+        framework.remove_group(group)?;
+    }
+
+    Ok(())
+}
 
 #[command]
 fn reload_commands(context: &mut Context, message: &Message, _args: Args) -> CommandResult
@@ -52,24 +96,24 @@ fn reload_commands(context: &mut Context, message: &Message, _args: Args) -> Com
         data.insert::<CommandLib>(command_lib.clone()).unwrap();
     };
 
-    // Loads the framework factory symbol and uses it to construct a new framework inner
-    let new_inner = {
-        println!("Extracting new factory symbol...");
-        let factory: Symbol<fn() -> StandardFramework> = unsafe { command_lib.0.get(b"framework_factory\0").expect("Failed to unwrap framework_factory symbol in reload_commands") };
+    // // Loads the framework factory symbol and uses it to construct a new framework inner
+    // let new_inner = {
+    //     println!("Extracting new factory symbol...");
+    //     let factory: Symbol<fn() -> StandardFramework> = unsafe { command_lib.0.get(b"framework_factory\0").expect("Failed to unwrap framework_factory symbol in reload_commands") };
 
-        println!("Creating new inner for framework...");
-        toaster_core::toaster_framework::ToasterFramework::create_inner(*factory, "t>")
-    };
+    //     println!("Creating new inner for framework...");
+    //     toaster_core::toaster_framework::ToasterFramework::create_inner(*factory, "t>")
+    // };
 
-    // Grabs the framework out of the data map and swaps the inner with the newly constructed one
-    {
-        let framework = data.get::<ToasterFramework>().unwrap();
+    // // Grabs the framework out of the data map and swaps the inner with the newly constructed one
+    // {
+    //     let framework = data.get::<ToasterFramework>().unwrap();
 
-        println!("Swapping inners...");
-        let mut old_inner = framework.get_writer().unwrap();
+    //     println!("Swapping inners...");
+    //     let mut old_inner = framework.get_writer().unwrap();
 
-        *old_inner = new_inner;
-    }
+    //     *old_inner = new_inner;
+    // }
 
     println!("Finished reloading commands!");
     message.channel_id.say(&context.http, "Finished reloading commands!")?;

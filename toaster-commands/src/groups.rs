@@ -6,3 +6,8 @@ framework_export!{
     mod general;
     mod yolol;
 }
+
+array_export!{
+    mod general;
+    mod yolol;
+}

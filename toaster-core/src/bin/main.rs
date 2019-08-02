@@ -8,6 +8,7 @@ use std::sync::{Arc, Mutex};
 use serenity::prelude::*;
 use serenity::framework::{
     StandardFramework,
+    standard::CommandGroup,
 };
 
 use libloading::{
@@ -37,17 +38,22 @@ fn main()
         CommandLib(Arc::new(lib))
     };
 
-    let framework = {
-        println!("Getting initial framework_factory symbol...");
-        let factory: Symbol<fn() -> StandardFramework> = unsafe { command_lib.0.get(b"framework_factory\0").expect("Failed to unwrap framework_factory symbol in main.rs!") };
+    let groups_slice = {
+        let get_slice: Symbol<fn() -> &'static [&'static CommandGroup]> = unsafe { command_lib.0.get(b"get_group_slice\0").expect("Failed to unwrap get_group_slice symbol in main.rs!") };
+        (*get_slice)()
+    };
 
-        println!("Attempting to use initial factory symbol...");
-        ToasterFramework::new(Some(*factory))
+    let framework = {
+        // println!("Getting initial framework_factory symbol...");
+        // let factory: Symbol<fn() -> StandardFramework> = unsafe { command_lib.0.get(b"framework_factory\0").expect("Failed to unwrap framework_factory symbol in main.rs!") };
+
+        // println!("Attempting to use initial factory symbol...");
+        Arc::new(ToasterFramework::new(None, |c| c))
     };
 
     {
         let mut data = client.data.write();
-        data.insert::<ToasterFramework>(framework.clone());
+        data.insert::<ToasterFramework>(Arc::clone(&framework));
         data.insert::<CommandLib>(command_lib);
     }
 

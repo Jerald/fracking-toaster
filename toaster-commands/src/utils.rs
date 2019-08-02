@@ -30,3 +30,21 @@ macro_rules! framework_export {
         }
     }
 }
+
+macro_rules! array_export {
+    ( $(mod $m:ident;) + ) => {
+        // $(mod $m;)+
+        
+        const ARRAY_LEN: usize = 0 $( + {let _ = stringify!($m); 1 } )+ ;
+        static ARRAY_GROUPS: [&serenity::framework::standard::CommandGroup; ARRAY_LEN] = [
+            $(
+                { use $m::*; &serenity_group_name::group_name!($m) },
+            )+
+        ];
+
+        pub fn get_group_slice() -> &'static [&'static serenity::framework::standard::CommandGroup]
+        {
+            &ARRAY_GROUPS
+        }
+    }
+}

@@ -6,4 +6,4 @@ mod utils;
 
 mod groups;
 pub use groups::framework_factory;
-
+pub use groups::get_group_slice;

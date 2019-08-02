@@ -23,6 +23,11 @@ use crate::{
 #[derive(Clone)]
 pub struct CommandLib(pub Arc<Library>);
 
+// pub struct PluginManager
+// {
+
+// }
+
 impl TypeMapKey for CommandLib
 {
     type Value = CommandLib;
