@@ -1,6 +1,9 @@
 [workspace]
-
 members = [
     "toaster-core",
     "toaster-commands",
 ]
+
+[profile.release]
+opt-level = "z"
+lto = true
