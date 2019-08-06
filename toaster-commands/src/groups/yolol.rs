@@ -1,4 +1,4 @@
-use std::convert::{TryFrom, TryInto};
+use std::convert::TryInto;
 
 use serenity::prelude::*;
 use serenity::model::channel::Message;
@@ -227,6 +227,8 @@ fn yolol(context: &mut Context, message: &Message, args: Args) -> CommandResult
         },
     };
 
+    println!("Output: {:?}, input: {:?}", config.input, config.output);
+
     match config.output
     {
         OutputFlag::Execution => {
@@ -237,7 +239,19 @@ fn yolol(context: &mut Context, message: &Message, args: Args) -> CommandResult
             message.channel_id.say(&context.http, output_yolol(input))?;
         },
         OutputFlag::CylonAst => {
-            message.channel_id.say(&context.http, output_cylon_ast(input))?;
+            let mut output = output_cylon_ast(input);
+
+            if output.len() > 2000
+            {
+                let other_half = output.split_off(1997);
+                message.channel_id.say(&context.http, output + "```")?;
+                message.channel_id.say(&context.http, "```json\n".to_owned() + other_half.as_str())?;
+            }
+            else
+            {
+                message.channel_id.say(&context.http, output)?;
+            }
+
         },
         OutputFlag::Ast => {
             message.channel_id.say(&context.http, output_ast(input))?;

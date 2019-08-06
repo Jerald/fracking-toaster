@@ -2,6 +2,7 @@ use serenity::prelude::*;
 use serenity::model::channel::Message;
 
 use serenity::framework::standard::{
+    Args,
     CommandResult,
     macros::{
         command,
@@ -12,7 +13,7 @@ use serenity::framework::standard::{
 group!({
     name: "general",
     options: {},
-    commands: [restart, test, ping, hello, help],
+    commands: [restart, test, ping, hello, help, franken_toaster],
 });
 
 #[command]
@@ -42,7 +43,7 @@ fn restart(context: &mut Context, message: &Message) -> CommandResult
 #[command]
 fn test(ctx: &mut Context, msg: &Message) -> CommandResult
 {
-    msg.channel_id.say(&ctx.http, "I've been refactored, _slightly_")?;
+    msg.channel_id.say(&ctx.http, "I think I'm working...")?;
     Ok(())
 }
 
@@ -64,5 +65,12 @@ fn hello(ctx: &mut Context, msg: &Message) -> CommandResult
 fn help(ctx: &mut Context, msg: &Message) -> CommandResult
 {
     msg.channel_id.say(&ctx.http, "I'm just a toaster! What would I be able to do to help?\n (Psst: I'm under construction, check back in later!)")?;
+    Ok(())
+}
+
+#[command]
+fn franken_toaster(ctx: &mut Context, msg: &Message) -> CommandResult
+{
+    msg.channel_id.say(&ctx.http, "Not sure if I'm alive")?;
     Ok(())
 }

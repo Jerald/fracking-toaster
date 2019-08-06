@@ -16,16 +16,37 @@
 // you're making. Then simply add the mod declaration to the macro call below. Ensure
 // you've used the group!() macro in your sub-module so there's something to import.
 
-macro_rules! framework_export {
+// macro_rules! framework_export {
+//     ( $(mod $m:ident;) + ) => {
+//         $(mod $m;)+
+        
+//         #[no_mangle]
+//         pub fn framework_factory() -> serenity::framework::standard::StandardFramework
+//         {
+//             println!("Framework factory is going!");
+//             serenity::framework::standard::StandardFramework::new()
+//             $(
+//                 .group({ use $m::*; &serenity_group_name::group_name!($m) })
+//             )+
+//         }
+//     }
+// }
+
+macro_rules! array_export {
     ( $(mod $m:ident;) + ) => {
         $(mod $m;)+
         
-        pub fn framework_with_groups() -> serenity::framework::standard::StandardFramework
-        {
-            serenity::framework::standard::StandardFramework::new()
+        const ARRAY_LEN: usize = 0 $( + {let _ = stringify!($m); 1 } )+ ;
+        static ARRAY_GROUPS: [&serenity::framework::standard::CommandGroup; ARRAY_LEN] = [
             $(
-                .group({ use $m::*; &serenity_group_name::group_name!($m) })
+                { use $m::*; &serenity_group_name::group_name!($m) },
             )+
+        ];
+
+        #[no_mangle]
+        pub fn get_group_slice() -> &'static [&'static serenity::framework::standard::CommandGroup]
+        {
+            &ARRAY_GROUPS
         }
     }
 }

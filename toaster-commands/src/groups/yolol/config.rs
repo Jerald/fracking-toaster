@@ -8,24 +8,28 @@ use yoloxide::{
     }
 };
 
+#[derive(Debug)]
 pub struct YololConfig
 {
     pub input: InputFlag,
     pub output: OutputFlag,
 }
 
+#[derive(Debug)]
 pub enum InputFlag
 {
     Yolol,
     CylonAst
 }
 
+// #[derive(Debug)]
 pub enum YololInput
 {
     Yolol(String),
     CylonAst(cylon_ast::Root)
 }
 
+#[derive(Debug)]
 pub enum OutputFlag
 {
     Execution,
