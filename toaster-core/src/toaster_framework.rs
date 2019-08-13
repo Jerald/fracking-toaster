@@ -54,6 +54,7 @@ impl ToasterFramework
     const DEFAULT_CONFIG: ConfigFn = { |conf| conf
         .prefix(TOASTER_PREFIX)
         .on_mention(Some(TOASTER_ID.into()))
+        .with_whitespace(true)
         .allow_dm(false)
     };
 
@@ -125,6 +126,11 @@ impl ToasterFramework
     pub fn flush_lib_buffer(&self)
     {
         self.plugin_manager.flush_unload_buffer();
+    }
+
+    pub fn get_group_list(&self) -> Vec<String>
+    {
+        self.plugin_manager.list_groups()
     }
 
     pub fn create_raw_inner(raw_inner_factory: RawInnerFactory) -> StandardFramework

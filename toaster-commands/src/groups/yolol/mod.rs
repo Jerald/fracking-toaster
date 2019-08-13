@@ -17,10 +17,11 @@ use yoloxide::{
     types::{
         Token,
         VecWindow,
-        ast::cylon_ast,
         ast::program::Program,
     }
 };
+
+use cylon_ast::CylonRoot;
 
 use regex::Regex;
 use lazy_static::lazy_static;
@@ -105,7 +106,7 @@ fn output_cylon_ast(input: YololInput) -> String
         YololInput::CylonAst(root) => root,
 
         yolol => match parse_yolol(yolol) {
-            Ok(prog) => cylon_ast::Root::new(prog.into()),
+            Ok(prog) => CylonRoot::new(prog.into()),
             Err(e) => return e
         }
     };

@@ -7,4 +7,6 @@ group_slice_export!{
     mod general;
     mod yolol;
     mod plugins;
+
+    mod frack_you;
 }

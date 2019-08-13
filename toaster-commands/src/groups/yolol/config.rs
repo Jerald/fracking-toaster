@@ -2,11 +2,7 @@ use serenity::framework::standard::{
     Args,
 };
 
-use yoloxide::{
-    types::{
-        ast::cylon_ast,
-    }
-};
+use cylon_ast::CylonRoot;
 
 #[derive(Debug)]
 pub struct YololConfig
@@ -26,7 +22,7 @@ pub enum InputFlag
 pub enum YololInput
 {
     Yolol(String),
-    CylonAst(cylon_ast::Root)
+    CylonAst(CylonRoot)
 }
 
 #[derive(Debug)]

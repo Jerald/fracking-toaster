@@ -12,7 +12,7 @@ use serenity::framework::standard::{
 group!({
     name: "general",
     options: {},
-    commands: [restart, test, ping, hello, help, franken_toaster],
+    commands: [restart, test, ping, hello, help, franken_toaster, youmustconstructadditionalpylons],
 });
 
 #[command]
@@ -71,5 +71,12 @@ fn help(ctx: &mut Context, msg: &Message) -> CommandResult
 fn franken_toaster(ctx: &mut Context, msg: &Message) -> CommandResult
 {
     msg.channel_id.say(&ctx.http, "Not sure if I'm alive")?;
+    Ok(())
+}
+
+#[command]
+fn youmustconstructadditionalpylons(ctx: &mut Context, msg: &Message) -> CommandResult
+{
+    msg.channel_id.say(&ctx.http, "StolenLight asked for this...")?;
     Ok(())
 }

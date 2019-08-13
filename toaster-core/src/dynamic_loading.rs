@@ -172,9 +172,13 @@ impl PluginManager
         // Uses the lib name to assemble a path for the library
         let group_lib_path = self.temp_dir.join(group_lib_name);
 
+        println!("Starting copy...");
+
         // Copies lib into temp folder with a unique(ish) name
         fs::copy(&self.lib_path, &group_lib_path)
             .map_err(|e| format!("[PluginManager::load_group] Failure in copying lib for group loading! Error: '{}'", e))?;
+
+        println!("Finished copy! Starting lib loading...");
 
         let lib = Library::new(&group_lib_path)
             .map_err(|e| format!("[PluginManager::load_group] Failed to load the library! Error: '{}'", e))?;
@@ -182,18 +186,24 @@ impl PluginManager
         let group: &'static CommandGroup = {
             // Grabs the function returning the slice of groups, then uses it to get said slice
             let slice: &[&'static CommandGroup] = {
+                println!("Getting slice fn!");
                 // Unsafe due to type checking not being possible with external libraries
                 let get_slice_fn: Symbol<SliceFn> = unsafe { lib.get(Self::GET_SLICE_FN) }
                     .map_err(|e| format!("[PluginManager::load_group] Unable to load slice getter fn from library! Error: '{}'", e))?;
 
+                println!("Getting slice itself...");
                 (*get_slice_fn)()
             };
 
+
+            println!("Searching through slice for group...");
             // Searches the slice for a matching group
             // Then maps the double reference in the Option to a single reference
             let found = slice.into_iter()
                 .find(|g| g.name == group_name)
                 .map(|g| *g);
+
+            println!("Returning final group!");
                 
             // Finally turns it into a result with the given error message and uses trys it to propagate errors
             found.ok_or("[PluginManager::load_group] Unable to find group in library slice!".to_owned())?
