@@ -44,7 +44,6 @@ group!({
 
 lazy_static! {
     static ref CODE_MATCHER: Regex = Regex::new(r"\A(?s:\n*)```(?s:[a-z]*\n)?((?s).*)\n?```\z").expect("Code matching regex failed to compile!");
-    static ref BACKTICK_SANITIZER: Regex = Regex::new(r"`").expect("Backtick sanitizer regex failed to compile!");
 }
 
 fn extract_input(input: &str) -> Result<&str, &str>
@@ -66,40 +65,45 @@ fn extract_input(input: &str) -> Result<&str, &str>
     }
 }
 
-fn output_execution(input: YololInput, env: &mut Environment) -> String
+fn output_execution(input: YololInput, env: &mut Environment) -> Result<(), String>
 {
+    let tick_limit = 1000;
+
     let code = match input
     {
         YololInput::Yolol(code) => code,
         YololInput::CylonAst(_) => {
-            return "Execution from Cylon AST not yet supported! Psst, try outputting yolol then using it as input ;)".to_owned()
+            return Err("Execution from Cylon AST not yet supported! Psst, try outputting yolol then using it as input ;)".to_owned())
         }
     };
 
-    for line in code.lines()
-    {
-        yoloxide::execute_line(env, String::from(line));
+    let lines: Vec<String> = code.lines().map(String::from).collect();
+    let line_len: i64 = lines.len().try_into().unwrap();
 
-        if env.error.is_empty() == false
-        {
-            return format!("Yolol execution encountered an error: ```{}```", env.error);
-        }
+    for _ in 0..tick_limit
+    {
+        // This is a stupid line but I can't find a better way to do it for some reason...
+        let next_line = if env.next_line > line_len || env.next_line <= 0 { 1 } else { env.next_line };
+        env.next_line = next_line;
+
+        let next_line: usize = next_line.try_into().unwrap();
+
+        yoloxide::execute_line(env, lines[next_line - 1].clone());
     }
 
-    format!("Output environment from execution: ```{}```", env)
+    Ok(())
 }
 
-fn output_yolol(input: YololInput) -> String
+fn output_yolol(input: YololInput) -> Result<String, String>
 {
     match parse_yolol(input)
     {
-        Ok(prog) => format!("Reconstructed code: ```{}```", prog),
-        Err(e) => e
+        Ok(prog) => Ok(format!("{}", prog)),
+        Err(e) => Err(e)
     }
-    
 }
 
-fn output_cylon_ast(input: YololInput) -> String
+fn output_cylon_ast(input: YololInput) -> Result<String, String>
 {
     let cylon_root = match input
     {
@@ -107,32 +111,32 @@ fn output_cylon_ast(input: YololInput) -> String
 
         yolol => match parse_yolol(yolol) {
             Ok(prog) => CylonRoot::new(prog.into()),
-            Err(e) => return e
+            Err(e) => return Err(e)
         }
     };
 
     match serde_json::to_string(&cylon_root)
     {
-        Ok(ast) => format!("Cylon AST of program:\n```json\n{}\n```", ast),
-        Err(error) => format!("Converting AST to Cylon AST failed with error: ```{}```", error)
+        Ok(ast) => Ok(ast),
+        Err(error) => Err(format!("Converting AST to Cylon AST failed with error: ```{}```", error))
     }
 }
 
-fn output_ast(input: YololInput) -> String
+fn output_ast(input: YololInput) -> Result<String, String>
 {
     match parse_yolol(input)
     {
-        Ok(prog) => format!("Parsed program: ```{:?}```", prog),
-        Err(e) => e
+        Ok(prog) => Ok(format!("{:?}", prog)),
+        Err(e) => Err(e)
     }
 }
 
-fn output_tokens(input: YololInput) -> String
+fn output_tokens(input: YololInput) -> Result<String, String>
 {
     match tokenize_yolol(input)
     {
-        Ok(tokens) => format!("Tokenized program: ```{:?}```", tokens),
-        Err(e) => e
+        Ok(tokens) => Ok(format!("{:?}", tokens)),
+        Err(e) => Err(e)
     }
 }
 
@@ -144,7 +148,7 @@ fn parse_yolol(input: YololInput) -> Result<Program, String>
     }
 
     let tokens = tokenize_yolol(input)?;
-    let mut window = VecWindow::new(&tokens, 0);
+    let mut window = VecWindow::new(tokens, 0);
 
     match yoloxide::parser::parse_program(&mut window)
     {
@@ -169,15 +173,6 @@ fn tokenize_yolol(input: YololInput) -> Result<Vec<Token>, String>
         Err(error) => Err(format!("Tokenizer failure: ```{}```", error)),
     }
 }
-
-// // Usage: send_error!(context, message, error)
-// // Error is some expression that should evaluate to a string or &str
-// macro_rules! send_error {
-//     ($ctx:ident, $msg:ident, $err:expr ) => {
-//         $msg.channel_id.say(&$ctx.http, $err)?;
-//         return Ok(())
-//     };
-// }
 
 #[command]
 fn yolol(context: &mut Context, message: &Message, args: Args) -> CommandResult
@@ -209,7 +204,7 @@ fn yolol(context: &mut Context, message: &Message, args: Args) -> CommandResult
     };
 
     // Quickly checks to make sure there's no backticks in the code, since they can break output formatting
-    if BACKTICK_SANITIZER.is_match(input)
+    if input.contains('`')
     {
         message.channel_id.say(&context.http, "Your supplied code contains some backticks! No trying to break the output code blocks ;)")?;
         return Ok(())
@@ -234,31 +229,90 @@ fn yolol(context: &mut Context, message: &Message, args: Args) -> CommandResult
     {
         OutputFlag::Execution => {
             let mut env = Environment::new("Bot");
-            message.channel_id.say(&context.http, output_execution(input, &mut env))?;
-        },
-        OutputFlag::Yolol => {
-            message.channel_id.say(&context.http, output_yolol(input))?;
-        },
-        OutputFlag::CylonAst => {
-            let mut output = output_cylon_ast(input);
-
-            if output.len() > 2000
+            match output_execution(input, &mut env)
             {
-                let other_half = output.split_off(1997);
-                message.channel_id.say(&context.http, output + "```")?;
-                message.channel_id.say(&context.http, "```json\n".to_owned() + other_half.as_str())?;
+                Ok(_) => (),
+                Err(e) => {
+                    message.channel_id.say(&context.http, e)?;
+                    return Ok(())
+                }
+            }
+
+            let output = env.to_string();
+            if output.len() > 1900
+            {
+                use serenity::http::AttachmentType;
+                let attachment = vec![AttachmentType::Bytes((output.as_bytes(), "toaster_output.txt"))];
+                message.channel_id.send_files(&context.http, attachment, |m| m.content("The output was too long! Here's a file instead"))?;
             }
             else
             {
+                let output = format!("Output environment from execution: ```{}```", output);
+                message.channel_id.say(&context.http, output)?;
+            }
+        },
+        OutputFlag::Yolol => {
+            let output = match output_yolol(input)
+            {
+                Ok(o) => o,
+                Err(e) => {
+                    message.channel_id.say(&context.http, e)?;
+                    return Ok(());
+                } 
+            };
+
+            let output = format!("Reconstructed code: ```{}```", output);
+            message.channel_id.say(&context.http, output)?;
+        },
+        OutputFlag::CylonAst => {
+            let output = match output_cylon_ast(input)
+            {
+                Ok(o) => o,
+                Err(e) => {
+                    message.channel_id.say(&context.http, e)?;
+                    return Ok(());
+                }
+            };
+
+            use serenity::http::AttachmentType;
+
+            if output.len() > 2000
+            {
+                let attachment = vec![AttachmentType::Bytes((output.as_bytes(), "cylon_ast.json"))];
+                message.channel_id.send_files(&context.http, attachment, |m| m.content("The code was too long! Here's a file instead"))?;
+            }
+            else
+            {
+                let output = format!("Cylon AST of program:\n```json\n{}\n```", output);
                 message.channel_id.say(&context.http, output)?;
             }
 
         },
         OutputFlag::Ast => {
-            message.channel_id.say(&context.http, output_ast(input))?;
+            let output = match output_ast(input)
+            {
+                Ok(o) => o,
+                Err(e) => {
+                    message.channel_id.say(&context.http, e)?;
+                    return Ok(());
+                }
+            };
+
+            let output = format!("Parsed program: ```{:?}```", output);
+            message.channel_id.say(&context.http, output)?;
         },
         OutputFlag::Tokens => {
-            message.channel_id.say(&context.http, output_tokens(input))?;
+            let output = match output_tokens(input)
+            {
+                Ok(o) => o,
+                Err(e) => {
+                    message.channel_id.say(&context.http, e)?;
+                    return Ok(());
+                }
+            };
+
+            let output = format!("Tokenized program: ```{:?}```", output);
+            message.channel_id.say(&context.http, output)?;
         }
     }
 

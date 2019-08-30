@@ -12,18 +12,22 @@ use serenity::framework::standard::{
 
 group!({
     name: "frack_you",
-    options: {},
-    commands: [frack]
+    options: {
+        prefix: "frack"
+    },
+    commands: [frack_you]
 });
 
-#[command]
-fn frack(context: &mut Context, message: &Message, args: Args) -> CommandResult
+#[command("you")]
+fn frack_you(context: &mut Context, message: &Message, _args: Args) -> CommandResult
 {
-    match args.current()
-    {
-        Some("you") | Some("you!") => { message.reply(context, "no, frack _you_")?; },
-        _ => ()
-    }
+    // match args.current()
+    // {
+    //     Some("you") | Some("you!") => { message.reply(context, "no, frack _you_")?; },
+    //     _ => ()
+    // }
+
+    message.reply(context, "no, frack _you_")?;
     
     Ok(())
 }

@@ -1,11 +1,11 @@
 use std::sync::{
     Arc,
-    Weak
+    Weak,
+    // Mutex, MutexGuard
 };
 
 use parking_lot::{
-    Mutex,
-    MutexGuard
+    Mutex, MutexGuard
 };
 
 use serenity::prelude::*;
@@ -35,11 +35,22 @@ pub fn default_raw_inner_factory() -> StandardFramework
     StandardFramework::new()
 }
 
-#[derive(Clone)]
 pub struct ToasterFramework
 {
-    pub inner: Arc<Mutex<StandardFramework>>,
+    inner: Arc<Mutex<StandardFramework>>,
     plugin_manager: Arc<PluginManager>
+}
+
+// Ensures it clones correctly
+impl Clone for ToasterFramework
+{
+    fn clone(&self) -> Self
+    {
+        ToasterFramework {
+            inner: Arc::clone(&self.inner),
+            plugin_manager: Arc::clone(&self.plugin_manager)
+        }
+    }
 }
 
 impl TypeMapKey for ToasterFramework
@@ -51,7 +62,7 @@ type ConfigFn = fn(&mut Configuration) -> &mut Configuration;
 
 impl ToasterFramework
 {
-    const DEFAULT_CONFIG: ConfigFn = { |conf| conf
+    const DEFAULT_CONFIG: ConfigFn = |conf| { conf
         .prefix(TOASTER_PREFIX)
         .on_mention(Some(TOASTER_ID.into()))
         .with_whitespace(true)
@@ -76,11 +87,14 @@ impl ToasterFramework
 
     pub fn add_all_groups(&self) -> Result<(), String>
     {
+        // Lock mutex now since the entire process should be protected
+        let mut lock = self.inner.lock();
+
         let group_lib_vec = self.plugin_manager.load_all_groups()?;
 
         for group_lib in group_lib_vec
         {
-            self.add_group_impl(group_lib)?;
+            self.add_group_impl(group_lib, &mut lock)?;
         }
 
         Ok(())
@@ -88,11 +102,14 @@ impl ToasterFramework
 
     pub fn add_group(&self, group: &str) -> Result<(), String>
     {
+        // Lock mutex now since the entire process should be protected
+        let mut lock = self.inner.lock();
+
         let group_lib = self.plugin_manager.load_group(group)?;
-        self.add_group_impl(group_lib)
+        self.add_group_impl(group_lib, &mut lock)
     }
 
-    fn add_group_impl(&self, group_lib: Weak<GroupLib>) -> Result<(), String>
+    fn add_group_impl(&self, group_lib: Weak<GroupLib>, lock: &mut MutexGuard<StandardFramework>) -> Result<(), String>
     {
         let group = match group_lib.upgrade()
         {
@@ -100,8 +117,7 @@ impl ToasterFramework
             None => return Err("[ToasterFramework::add_group] weak pointer from load_group has expired!".to_owned())
         };
 
-        let mut lock = self.inner.lock();
-        println!("Adding group: '{}'", group.name);
+        println!("[ToasterFramework::add_group_impl] Adding group: '{}'", group.name);
         lock.group_add(group);
 
         Ok(())
@@ -109,15 +125,21 @@ impl ToasterFramework
 
     pub fn remove_group(&self, group: &str) -> Result<(), String>
     {
+        // Lock mutex now since the entire process should be protected
+        let mut lock = self.inner.lock();
+
         let group_lib = self.plugin_manager.unload_group(group);
+
         let group = match group_lib
         {
             Some(group_lib) => group_lib.group,
             None => return Err("[ToasterFramework::remove_group] tried to remove a group that wasn't loaded!".to_owned())
         };
 
-        let mut lock = self.inner.lock();
-        println!("Removing group: '{}'", group.name);
+        // Normally it might make more sense to remove the group from being usable
+        // before we unload it. Luckily, the only "fail" case for unloading is if
+        // the group was never loaded in the first place. That should make it safe.
+        println!("[ToasterFramework::remove_group] Removing group: '{}'", group.name);
         lock.group_remove(group);
 
         Ok(())
@@ -139,10 +161,10 @@ impl ToasterFramework
             .configure(Self::DEFAULT_CONFIG)
     }
 
-    pub fn get_inner(&self) -> MutexGuard<StandardFramework>
-    {
-        self.inner.lock()
-    } 
+    // pub fn get_inner(&self) -> MutexGuard<StandardFramework>
+    // {
+    //     self.inner.lock()
+    // } 
 }
 
 impl Framework for ToasterFramework
@@ -150,8 +172,8 @@ impl Framework for ToasterFramework
     #[inline]
     fn dispatch(&mut self, ctx: Context, msg: Message, threadpool: &ThreadPool)
     {
-        self.inner.lock().dispatch(ctx, msg, threadpool);
+        // let mut lock = self.inner.lock().expect("[ToasterFramework::dispatch] Poisoned mutex!");
+        let mut lock = self.inner.lock();
+        lock.dispatch(ctx, msg, threadpool);
     }
 }
-
-

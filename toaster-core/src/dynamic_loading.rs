@@ -45,6 +45,7 @@ pub struct PluginManager
 
     // Map from group name to its GroupLib wrapper
     group_map: RwLock<BTreeMap<String, Arc<GroupLib>>>,
+
     // Vec holding libs that were unloaded previously.
     // To be manually cleared on next usage
     unload_buffer: Mutex<Vec<Arc<GroupLib>>>
@@ -134,9 +135,11 @@ impl PluginManager
     // Does this by grabbing the slice once and using it to enumerate over all the groups
     pub fn load_all_groups(&self) -> Result<Vec<Weak<GroupLib>>, String>
     {
+        let group_lib_path = self.copy_lib("loadall")?;
+
         // This lib is used _only_ for enumerating all the groups in the slice. It gets dropped at the end of the function.
         // Since this is the only place we load the library bare from its direct path, so we shouldn't get conflict from it
-        let lib = Library::new(&self.lib_path)
+        let lib = Library::new(&group_lib_path)
             .map_err(|e| format!("[load_all_groups] Failed to load library! Error: '{}'", e))?;
 
         // Load the function that gets the group slice then call it to get said slice
@@ -167,18 +170,7 @@ impl PluginManager
 
         println!("Loading group: '{}'", group_name);
 
-        // Creates a formatted unique lib name for the group
-        let group_lib_name = self.unique_formatted_group_lib_name(group_name);
-        // Uses the lib name to assemble a path for the library
-        let group_lib_path = self.temp_dir.join(group_lib_name);
-
-        println!("Starting copy...");
-
-        // Copies lib into temp folder with a unique(ish) name
-        fs::copy(&self.lib_path, &group_lib_path)
-            .map_err(|e| format!("[PluginManager::load_group] Failure in copying lib for group loading! Error: '{}'", e))?;
-
-        println!("Finished copy! Starting lib loading...");
+        let group_lib_path = self.copy_lib(group_name)?;
 
         let lib = Library::new(&group_lib_path)
             .map_err(|e| format!("[PluginManager::load_group] Failed to load the library! Error: '{}'", e))?;
@@ -186,27 +178,19 @@ impl PluginManager
         let group: &'static CommandGroup = {
             // Grabs the function returning the slice of groups, then uses it to get said slice
             let slice: &[&'static CommandGroup] = {
-                println!("Getting slice fn!");
                 // Unsafe due to type checking not being possible with external libraries
                 let get_slice_fn: Symbol<SliceFn> = unsafe { lib.get(Self::GET_SLICE_FN) }
                     .map_err(|e| format!("[PluginManager::load_group] Unable to load slice getter fn from library! Error: '{}'", e))?;
 
-                println!("Getting slice itself...");
                 (*get_slice_fn)()
             };
 
-
-            println!("Searching through slice for group...");
             // Searches the slice for a matching group
-            // Then maps the double reference in the Option to a single reference
-            let found = slice.into_iter()
-                .find(|g| g.name == group_name)
-                .map(|g| *g);
+            let found = slice.iter()
+                .find(|g| g.name == group_name);
 
-            println!("Returning final group!");
-                
             // Finally turns it into a result with the given error message and uses trys it to propagate errors
-            found.ok_or("[PluginManager::load_group] Unable to find group in library slice!".to_owned())?
+            found.ok_or_else(|| "[PluginManager::load_group] Unable to find group in library slice!".to_owned())?
         };
 
         // Library has been loaded and used, the file _should_ be able to be safely removed
@@ -220,9 +204,16 @@ impl PluginManager
             lib,
         });
 
-        // Inserts the GroupLib object into the group map, keyed by the group name
-        self.group_map.write()
-            .insert(String::from(group_name), Arc::clone(&group_lib));
+        {
+            #![allow(clippy::option_map_unit_fn)]
+
+            // Inserts the GroupLib object into the group map, keyed by the group name
+            self.group_map.write()
+                .insert(String::from(group_name), Arc::clone(&group_lib))
+                // If there was a value under the key already, add it to the unload buffer.
+                // This protects us when reloading groups at runtime.
+                .map(|g| self.unload_buffer.lock().push(g));
+        }
 
         // Returns a weak pointer to the group lib.
         // The reason for this is because we don't want the Arc held too long and keeping the library loaded
@@ -232,7 +223,7 @@ impl PluginManager
     // Removes a group from the group map, adding it to the unload buffer if it exists then returning it
     pub fn unload_group(&self, group_name: &str) -> Option<Arc<GroupLib>>
     {
-        println!("Unloading group: '{}'", group_name);
+        println!("[PluginManager::unload_group] Unloading group: '{}'", group_name);
         let unloaded_group = self.group_map.write().remove(group_name);
 
         if let Some(group) = &unloaded_group
@@ -254,5 +245,20 @@ impl PluginManager
         // Using atomics for this crap because a mutex is major overkill
         let old = self.lib_load_counter.fetch_add(1, Ordering::SeqCst);
         format!("lib_{}.plugin.{}", group_name, old + 1)
+    }
+
+    /// Copies the library for a given group and returns the unique constructed path to it
+    fn copy_lib(&self, group_name: &str) -> Result<PathBuf, String>
+    {
+         // Creates a formatted unique lib name for the group
+        let group_lib_name = self.unique_formatted_group_lib_name(group_name);
+        // Uses the lib name to assemble a path for the library
+        let group_lib_path = self.temp_dir.join(group_lib_name);
+
+        // Copies lib into temp folder with a unique(ish) name
+        fs::copy(&self.lib_path, &group_lib_path)
+            .map_err(|e| format!("[PluginManager::load_group] Failure in copying lib for group loading! Error: '{}'", e))?;
+
+        Ok(group_lib_path)
     }
 }

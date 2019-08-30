@@ -4,6 +4,9 @@ members = [
     "toaster-commands",
 ]
 
-# [profile.release]
+[profile.release]
+rpath = true
 # opt-level = "z"
-# lto = true
+
+[profile.dev]
+rpath = true

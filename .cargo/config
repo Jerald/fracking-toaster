@@ -1,0 +1,3 @@
+[build]
+rustflags =    ["-C", "prefer-dynamic",
+                "-L", "/home/toaster/fracking-toaster/target/release"]

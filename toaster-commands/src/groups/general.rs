@@ -11,11 +11,14 @@ use serenity::framework::standard::{
 
 group!({
     name: "general",
-    options: {},
+    // options: {
+    //     default_command: hello
+    // },
     commands: [restart, test, ping, hello, help, franken_toaster, youmustconstructadditionalpylons],
 });
 
 #[command]
+#[aliases("reboot")]
 fn restart(context: &mut Context, message: &Message) -> CommandResult
 {
     {
@@ -42,7 +45,7 @@ fn restart(context: &mut Context, message: &Message) -> CommandResult
 #[command]
 fn test(ctx: &mut Context, msg: &Message) -> CommandResult
 {
-    msg.channel_id.say(&ctx.http, "I think I'm working...")?;
+    msg.channel_id.say(&ctx.http, "I work right!")?;
     Ok(())
 }
 

@@ -8,6 +8,10 @@ use toaster_core::{
         PluginManager,
     },
     handler,
+
+    share_map_hack::{
+        ToasterHack,
+    }
 };
 
 fn main()
@@ -18,13 +22,7 @@ fn main()
         .expect("Error creating client!");
 
     let framework = {
-        // #[cfg(debug_assertions)]
-        // let plugin_manager = PluginManager::new("target/debug/libtoaster_commands.so", "/home/toaster/plugin_temp_dir");
-        // #[cfg(not(debug_assertions))]
-        // let plugin_manager = PluginManager::new("target/release/libtoaster_commands.so", "/home/toaster/plugin_temp_dir");
-
-        let plugin_manager = PluginManager::new("target/release/libtoaster_commands.so", "/home/toaster/plugin_temp_dir");
-
+        let plugin_manager = PluginManager::new("/home/toaster/fracking-toaster/target/release/libtoaster_commands.so", "/home/toaster/plugin_temp_dir");
         ToasterFramework::new(plugin_manager.unwrap(), |c| c)
     };
 
@@ -32,7 +30,7 @@ fn main()
 
     {
         let mut data = client.data.write();
-        data.insert::<ToasterFramework>(framework.clone());
+        data.insert_toaster(framework.clone());
     }
 
     client.with_framework(framework);
